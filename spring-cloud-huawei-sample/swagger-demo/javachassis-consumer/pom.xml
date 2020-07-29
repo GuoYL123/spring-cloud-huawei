@@ -24,6 +24,11 @@
     </dependency>
     <dependency>
       <groupId>org.apache.servicecomb</groupId>
+      <artifactId>handler-flowcontrol-qps</artifactId>
+      <version>2.1.1-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.servicecomb</groupId>
       <artifactId>provider-springmvc</artifactId>
       <version>${java-chassis.version}</version>
     </dependency>

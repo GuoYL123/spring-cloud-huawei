@@ -16,7 +16,18 @@ cse:
       refresh_interval: 5000
   rest:
     address: 0.0.0.0:8082
-
+  handler:
+    chain:
+      Provider:
+        default: qps-flowcontrol-provider
+  flowcontrol:
+    strategy: My
+    Provider:
+      qps:
+        enabled: true
+        global:
+          limit: 10
+          bucket: 30
 #  credentials:
 #    accessKey: your ak
 #    secretKey: your sk
