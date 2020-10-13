@@ -17,10 +17,15 @@
 
 package com.huaweicloud.common.transport;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.huaweicloud.common.util.SecretUtil;
+
 import java.io.IOException;
 
+import java.util.List;
 import java.util.Map;
+
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.HttpEntity;
@@ -41,7 +46,13 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.util.EntityUtils;
+
 import com.huaweicloud.common.exception.RemoteServerUnavailableException;
+import com.huaweicloud.common.util.URLUtil;
+
+import org.apache.servicecomb.foundation.common.utils.JsonUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 
@@ -51,11 +62,55 @@ import org.springframework.util.StringUtils;
  **/
 public class DefaultHttpTransport implements HttpTransport {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultHttpTransport.class);
+
   private volatile static DefaultHttpTransport DEFAULT_HTTP_TRANSPORT;
 
   private ServiceCombAkSkProperties serviceCombAkSkProperties;
 
   private HttpClient httpClient;
+
+  private RBACToken token;
+
+  public void setRBACToken(ServiceCombRBACProperties serviceCombRBACProperties,
+      String urls) {
+    if (StringUtils.isEmpty(serviceCombRBACProperties.getName()) ||
+        StringUtils.isEmpty(serviceCombRBACProperties.getPassword())) {
+      return;
+    }
+    List<String> urlList = URLUtil.dealMultiUrl(urls);
+    getToken(urlList);
+  }
+
+  //todo: 请求失败重新获取token
+  private void getToken(List<String> urlList) {
+    Response response = null;
+    String url;
+    for (int i = 0; i < urlList.size(); i++) {
+      url = urlList.get(i++);
+      try {
+        response = this.sendGetRequest(url + "/v4/default/registry/microservices/{service-id}/instances");
+        if (response.getStatusCode() == 200) {
+          token = JsonUtils.OBJ_MAPPER
+              .readValue(response.getContent(), RBACToken.class);
+          LOGGER.info("get token success.");
+        } else {
+          LOGGER.error("error");
+        }
+      } catch (RemoteServerUnavailableException e) {
+        LOGGER.warn("url {} can not access", url);
+        url = urlList.get(i++);
+      } catch (IOException e) {
+        LOGGER.warn("parse result failed", response);
+      }
+    }
+  }
+
+  private void addToken(HttpUriRequest httpRequest) {
+    if (token != null) {
+      httpRequest.addHeader("Authorization", "Bearer " + token.getToken());
+    }
+  }
 
   private DefaultHttpTransport(ServiceCombSSLProperties serviceCombSSLProperties) {
     SSLContext sslContext = SecretUtil.getSSLContext(serviceCombSSLProperties);
@@ -107,6 +162,7 @@ public class DefaultHttpTransport implements HttpTransport {
     try {
       DealHeaderUtil.addDefautHeader(httpRequest);
       DealHeaderUtil.addAKSKHeader(httpRequest, serviceCombAkSkProperties);
+      addToken(httpRequest);
       HttpResponse httpResponse = httpClient.execute(httpRequest);
       resp.setStatusCode(httpResponse.getStatusLine().getStatusCode());
       resp.setStatusMessage(httpResponse.getStatusLine().getReasonPhrase());
@@ -166,5 +222,4 @@ public class DefaultHttpTransport implements HttpTransport {
   public void setServiceCombAkSkProperties(ServiceCombAkSkProperties serviceCombAkSkProperties) {
     this.serviceCombAkSkProperties = serviceCombAkSkProperties;
   }
-
 }
