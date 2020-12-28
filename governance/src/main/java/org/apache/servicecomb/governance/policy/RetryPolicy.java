@@ -26,13 +26,17 @@ import org.apache.servicecomb.governance.handler.RetryHandler;
  *  retryOnExceptionPredicate  根据失败异常决定是否进行重试
  *
  */
-public class RetryPolicy extends AbstractPolicy {
+public class RetryPolicy extends AbstractClientPolicy<RetryPolicy> {
 
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
   public static final int DEFAULT_WAIT_DURATION = 0;
 
   public static final String DEFAULT_RETRY_ON_RESPONSE_STATUS = "502";
+
+  private String apiPath;
+
+  private String method;
 
   //最多尝试次数
   private int maxAttempts = DEFAULT_MAX_ATTEMPTS;
@@ -50,6 +54,22 @@ public class RetryPolicy extends AbstractPolicy {
   private String ignoreExceptions;
 
   private boolean onSame;
+
+  public String getApiPath() {
+    return apiPath;
+  }
+
+  public void setApiPath(String apiPath) {
+    this.apiPath = apiPath;
+  }
+
+  public String getMethod() {
+    return method;
+  }
+
+  public void setMethod(String method) {
+    this.method = method;
+  }
 
   public String getRetryOnResponseStatus() {
     if (StringUtils.isEmpty(retryOnResponseStatus)) {
