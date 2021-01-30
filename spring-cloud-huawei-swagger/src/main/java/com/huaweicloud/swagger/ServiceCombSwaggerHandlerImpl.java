@@ -66,17 +66,25 @@ public class ServiceCombSwaggerHandlerImpl implements ServiceCombSwaggerHandler 
 
   @Override
   public void init(String appName, String serviceName) {
-    Documentation documentation = documentationCache
-        .documentationByGroup(Docket.DEFAULT_GROUP_NAME);
-
-    if (withJavaChassis) {
-      DocumentationSwaggerMapper documentationSwaggerMapper =
-          new ServiceCombDocumentationSwaggerMapper(appName, serviceName, mapper);
-      this.swaggerMap = documentationSwaggerMapper.documentationToSwaggers(documentation);
-    } else {
-      DocumentationSwaggerMapper documentationSwaggerMapper = new SpringCloudDocumentationSwaggerMapper(mapper);
-      this.swaggerMap = documentationSwaggerMapper.documentationToSwaggers(documentation);
+    Documentation documentation = null;
+    while (documentation == null) {
+      documentation = documentationCache.documentationByGroup(Docket.DEFAULT_GROUP_NAME);
+      if (documentation != null && documentation.getApiListings() != null) {
+        break;
+      }
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        LOGGER.warn("unexpect error.");
+      }
     }
+    DocumentationSwaggerMapper documentationSwaggerMapper;
+    if (withJavaChassis) {
+      documentationSwaggerMapper = new ServiceCombDocumentationSwaggerMapper(appName, serviceName, mapper);
+    } else {
+      documentationSwaggerMapper = new SpringCloudDocumentationSwaggerMapper(mapper);
+    }
+    this.swaggerMap = documentationSwaggerMapper.documentationToSwaggers(documentation);
   }
 
   @Override
